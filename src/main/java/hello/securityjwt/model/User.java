@@ -1,6 +1,10 @@
 package hello.securityjwt.model;
 
+import java.sql.Array;
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -15,7 +19,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-@Slf4j
 @Entity
 @Data
 @NoArgsConstructor
@@ -29,13 +32,19 @@ public class User {
 	private String username;
 	private String password;
 	private String email;
-	private String role; //ROLE_USER, ROLE_ADMIN
+	private String roles; //USER, MANAGER, ADMIN
 	
 	private String provider;
 	private String providerId;
 	
 	@CreationTimestamp
 	private Timestamp createDate;
-	
+
+	public List<String> getRoleLst() {
+		if(this.roles.length() > 0) {
+			return Arrays.asList(this.roles.split(","));
+		}
+		return new ArrayList<>();
+	}
 
 }
