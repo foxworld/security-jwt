@@ -2,6 +2,7 @@ package hello.securityjwt.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,7 +18,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 	private final CorsConfigurationSource corsConfigurationSource;
-	private final AuthenticationManagerBuilder authenticationManagerBuilder;
 	
 	@Bean
 	public BCryptPasswordEncoder passwordEncoder() {
@@ -26,7 +26,7 @@ public class SecurityConfig {
 	
 	@Bean
 	protected SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		
+	
 		/*
 		 * 등록시 내가 만든 필터보다 먼저 실행 before 또는 after 
 		 */
@@ -39,9 +39,10 @@ public class SecurityConfig {
 		// authorization basic : id, pw 를 가지고 있다가 계속 로그인을 시도하면서 인증하는 방식으로 사용안함
 		http.httpBasic(form -> form.disable());
 		
-		//http.addFilter(new JwtAuthenticationFilter(authenticationManager()));
-		//http.addFilter(new JwtAuthenticationFilter(null));
-		http.addFilter(new JwtAuthenticationFilter(authenticationManagerBuilder));
+//		http.addFilter(new JwtAuthenticationFilter(authenticationManagerBuilder));
+//		http.addFilter(new JwtAuthenticationFilter(authenticationManager));
+//		http.addFilter(new JwtAuthorizationFilter(authenticationManager));
+		http.apply(new customJwtFilter());
 		
 		// 인증없이 허용 URL 설정
 		http.authorizeHttpRequests(authorize -> authorize
@@ -55,5 +56,14 @@ public class SecurityConfig {
 		http.cors(cors -> cors.configurationSource(corsConfigurationSource));
 		
 		return http.build();
+	}
+	
+	public class customJwtFilter extends AbstractHttpConfigurer<customJwtFilter, HttpSecurity> {
+		@Override
+		public void configure(HttpSecurity http) throws Exception {
+			AuthenticationManager authenticationManager = http.getSharedObject(AuthenticationManager.class);
+			http.addFilter(new JwtAuthenticationFilter(authenticationManager));
+			http.addFilter(new JwtAuthorizationFilter(authenticationManager));
+		}
 	}
 }

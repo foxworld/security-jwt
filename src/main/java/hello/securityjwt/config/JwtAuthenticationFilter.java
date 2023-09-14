@@ -1,13 +1,17 @@
 package hello.securityjwt.config;
 
 import java.io.IOException;
+import java.util.Date;
 
+import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import hello.securityjwt.auth.PrincipalDetails;
@@ -23,7 +27,7 @@ import lombok.extern.slf4j.Slf4j;
 // login 요청시 적용됨
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
-	private final AuthenticationManagerBuilder authenticationManagerBuilder;
+	private final AuthenticationManager authenticationManager;
 //
 	@Override
 	public Authentication attemptAuthentication(HttpServletRequest request, HttpServletResponse respnse)
@@ -44,7 +48,7 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 				= new UsernamePasswordAuthenticationToken(user.getUsername(), user.getPassword());
 			
 			// PrincipalDetailsService의 loadUserByUsername() 함수가 실행됨
-			Authentication authentication = authenticationManagerBuilder.getObject().authenticate(authenticationToken);
+			Authentication authentication = authenticationManager.authenticate(authenticationToken);
 			log.debug("authentication={}", authentication);
 				
 			PrincipalDetails principalDetails = (PrincipalDetails) authentication.getPrincipal();
@@ -65,6 +69,18 @@ public class JwtAuthenticationFilter extends UsernamePasswordAuthenticationFilte
 	protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
 			Authentication authResult) throws IOException, ServletException {
 		log.debug("정상적으로 인증이 완료됨");
-		super.successfulAuthentication(request, response, chain, authResult);
+		PrincipalDetails principalDetails = (PrincipalDetails) authResult.getPrincipal();
+		
+		// Keyed-Hashed Message Authentication Code Sha512 방식
+		String JwtToken = JWT.create()
+				.withSubject("Security-jwt")
+				.withExpiresAt(new Date(System.currentTimeMillis()+(JwtProperties.EXPIRATION_TIME)))
+				.withClaim("id",principalDetails.getUser().getId())
+				.withClaim("username", principalDetails.getUser().getUsername())
+				.sign(Algorithm.HMAC512(JwtProperties.SECRET));
+		
+		log.debug("JwtToken={}", JwtToken);
+		
+		response.addHeader(JwtProperties.HEADER_STRING, JwtProperties.TOKEN_PREFIX+ JwtToken);
 	}
 }
