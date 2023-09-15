@@ -28,7 +28,7 @@ public class RestApiController {
 	
 	@GetMapping("join")
 	public String joinForm() {
-		return "joinForm";
+		return "<h1>joinForm</h1>";
 	}
 	
 	@PostMapping("join")
@@ -40,6 +40,24 @@ public class RestApiController {
 		user.setPassword(encPassword);
 		repository.save(user);
 		return "회원가입완료";
+	}
+	
+	// user manager admin 접근가능
+	@GetMapping("api/v1/user")
+	public String user() {
+		return "user";
+	}
+	
+	// manager admin 접근가능
+	@GetMapping("api/v1/manager")
+	public String manager() {
+		return "manager";
+	}
+	
+	// admin 접근가능
+	@GetMapping("api/v1/admin")
+	public String admin() {
+		return "admin";
 	}
 	
 }

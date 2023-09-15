@@ -3,8 +3,19 @@ package hello.securityjwt.config;
 import java.io.IOException;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
+import com.auth0.jwt.JWT;
+import com.auth0.jwt.algorithms.Algorithm;
+import com.auth0.jwt.interfaces.Verification;
+
+import hello.securityjwt.auth.PrincipalDetails;
+import hello.securityjwt.model.User;
+import hello.securityjwt.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -17,20 +28,49 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class JwtAuthorizationFilter extends BasicAuthenticationFilter {
+	private UserRepository userRepository;
 	
-	public JwtAuthorizationFilter(AuthenticationManager authenticationManager) {
+	public JwtAuthorizationFilter(AuthenticationManager authenticationManager, UserRepository userRepository) {
 		super(authenticationManager);
-		
+		this.userRepository = userRepository;
 	}
 	
 	@Override
 		protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
 				throws IOException, ServletException {
-			super.doFilterInternal(request, response, chain);
+
 			log.debug("인증 또는 권한이 필요한 주소 요청이 됨");
 			
 			String jwtHeader = request.getHeader(JwtProperties.HEADER_STRING);
-			log.debug("jwtHeader={}",jwtHeader);
+			
+			
+			// Header에 토근이 있는지 검증
+			if(jwtHeader == null || !jwtHeader.startsWith(JwtProperties.TOKEN_PREFIX)) {
+				log.debug("jwtHeader=없음");
+				chain.doFilter(request, response);
+				return;
+			}
+			
+			String jwtToken = jwtHeader.replace("Bearer ", "");
+			log.debug("jwtToken={}",jwtToken);
+			String username = JWT.require(Algorithm.HMAC512(JwtProperties.SECRET)).build()
+					.verify(jwtToken).getClaim("username")
+					.asString();
+			
+			if(username != null) {
+				User userEntity = userRepository.findByUsername(username);
+				PrincipalDetails principalDetails = new PrincipalDetails(userEntity);
+				
+				// Jwt토큰 서명을 통해서 서명이 정상이면 Authentication 를 생성한다
+				log.debug("auth={}", principalDetails.getAuthorities());
+				Authentication authentication = 
+						new UsernamePasswordAuthenticationToken(principalDetails, null, principalDetails.getAuthorities());
+				
+				// 강제로 시큐리티의 세션에 접근하여 Authentication 객체에 저장
+				SecurityContextHolder.getContext().setAuthentication(authentication);
+				
+				chain.doFilter(request, response);
+			}
 		}
 
 }
